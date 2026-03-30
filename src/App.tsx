@@ -456,6 +456,15 @@ function getOrganizerResolvedSourceBadge(
   return null;
 }
 
+function getPathLeaf(path?: string): string | null {
+  if (!path) {
+    return null;
+  }
+
+  const segments = path.split(/[\\/]/).filter(Boolean);
+  return segments.length > 0 ? segments[segments.length - 1] : path;
+}
+
 function MaterialIcon({
   className,
   filled = false,
@@ -477,6 +486,65 @@ function MaterialIcon({
 
 function BrandGlyph() {
   return <MaterialIcon className="brand-glyph" filled name="folder" />;
+}
+
+function SettingsTabButton({
+  active,
+  iconName,
+  label,
+  note,
+  onClick
+}: {
+  active: boolean;
+  iconName: IconName;
+  label: string;
+  note: string;
+  onClick: () => void;
+}) {
+  return (
+    <button className={`settings-tab-button ${active ? "active" : ""}`} type="button" onClick={onClick}>
+      <span className="settings-tab-icon">
+        <MaterialIcon className="glyph" filled={active} name={iconName} />
+      </span>
+      <span className="settings-tab-copy">
+        <span className="settings-tab-label">{label}</span>
+        <span className="settings-tab-note">{note}</span>
+      </span>
+    </button>
+  );
+}
+
+function SettingsMetricCard({
+  label,
+  note,
+  value
+}: {
+  label: string;
+  note?: string;
+  value: number | string;
+}) {
+  return (
+    <article className="settings-metric-card">
+      <p className="summary-label">{label}</p>
+      <strong className="settings-metric-value">{value}</strong>
+      {note ? <p className="settings-metric-note">{note}</p> : null}
+    </article>
+  );
+}
+
+function SettingsBlockHeader({
+  text,
+  title
+}: {
+  text?: string;
+  title: string;
+}) {
+  return (
+    <div className="settings-block-header">
+      <h4 className="settings-block-title">{title}</h4>
+      {text ? <p className="settings-block-text">{text}</p> : null}
+    </div>
+  );
 }
 
 function SidebarItem({ active, label, route, onSelect }: SidebarItemProps) {
@@ -1157,6 +1225,20 @@ function SettingsPage({
   const activeModule = activeTab === "general" ? null : modules.find((module) => module.id === activeTab);
   const isCleanupTab = activeModule?.id === "cleanup";
   const isOrganizerTab = activeModule?.id === "organizer";
+  const organizerRootPath = selectedRoots.organizer;
+  const cleanupRootPath = selectedRoots.cleanup;
+  const organizerRootName = getPathLeaf(organizerRootPath);
+  const cleanupRootName = getPathLeaf(cleanupRootPath);
+  const activeHeaderEyebrow = activeTab === "general" ? dictionary.app.settingsLabel : activeModule?.badge ?? "";
+  const activeHeaderTitle = activeTab === "general" ? dictionary.app.settingsTitle : activeModule?.title ?? "";
+  const activeHeaderText =
+    activeTab === "general" ? dictionary.app.settingsLanguageRestartNote : activeModule?.intro ?? "";
+  const headerMetaItems =
+    activeTab === "general"
+      ? [activeLocaleName, pendingLocaleName]
+      : [activeModule?.navLabel, getPathLeaf(selectedRoots[activeTab])].filter(
+          (item): item is string => Boolean(item)
+        );
 
   return (
     <div className="page page-settings">
@@ -1167,52 +1249,71 @@ function SettingsPage({
 
         <div className="settings-layout">
           <nav className="settings-tabs" aria-label={dictionary.app.settingsTitle}>
-            <button
-              className={`settings-tab-button ${activeTab === "general" ? "active" : ""}`}
-              type="button"
+            <p className="settings-sidebar-label">{dictionary.app.settingsTitle}</p>
+
+            <SettingsTabButton
+              active={activeTab === "general"}
+              iconName="settings"
+              label={dictionary.app.settingsLanguageTitle}
+              note={activeLocaleName}
               onClick={() => setActiveTab("general")}
-            >
-              <span className="settings-tab-icon">
-                <MaterialIcon className="glyph" filled={activeTab === "general"} name="settings" />
-              </span>
-              <span className="settings-tab-copy">
-                <span className="settings-tab-label">{dictionary.app.settingsLanguageTitle}</span>
-                <span className="settings-tab-note">{activeLocaleName}</span>
-              </span>
-            </button>
+            />
 
             {modules.map((module) => (
-              <button
-                className={`settings-tab-button ${activeTab === module.id ? "active" : ""}`}
+              <SettingsTabButton
+                active={activeTab === module.id}
+                iconName={getIconName(module.id)}
                 key={module.id}
-                type="button"
+                label={module.title}
+                note={getPathLeaf(selectedRoots[module.id]) ?? module.badge}
                 onClick={() => setActiveTab(module.id)}
-              >
-                <span className="settings-tab-icon">
-                  <MaterialIcon className="glyph" filled={activeTab === module.id} name={getIconName(module.id)} />
-                </span>
-                <span className="settings-tab-copy">
-                  <span className="settings-tab-label">{module.title}</span>
-                  <span className="settings-tab-note">{module.navLabel}</span>
-                </span>
-              </button>
+              />
             ))}
           </nav>
 
           <section className="settings-detail" aria-live="polite">
+            <div className="settings-detail-header">
+              <div className="settings-detail-hero">
+                <span className="settings-section-icon">
+                  <MaterialIcon
+                    className="glyph"
+                    filled
+                    name={activeModule ? getIconName(activeModule.id) : "settings"}
+                  />
+                </span>
+                <div className="settings-section-copy">
+                  <p className="settings-section-eyebrow">{activeHeaderEyebrow}</p>
+                  <h3 className="settings-section-title">{activeHeaderTitle}</h3>
+                  <p className="settings-section-text">{activeHeaderText}</p>
+                </div>
+              </div>
+
+              {headerMetaItems.length > 0 ? (
+                <div className="settings-header-meta">
+                  {headerMetaItems.map((item) => (
+                    <span className="settings-header-chip" key={item}>
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
             {activeTab === "general" ? (
               <>
-                <div className="settings-detail-header">
-                  <span className="settings-section-icon">
-                    <MaterialIcon className="glyph" filled name="settings" />
-                  </span>
-                  <div className="settings-section-copy">
-                    <h3 className="settings-section-title">{dictionary.app.settingsLanguageTitle}</h3>
-                    <p className="settings-section-text">{dictionary.app.settingsLanguageRestartNote}</p>
-                  </div>
+                <div className="settings-overview-grid">
+                  <SettingsMetricCard
+                    label={dictionary.app.settingsLoadedLanguageLabel}
+                    value={activeLocaleName}
+                  />
+                  <SettingsMetricCard
+                    label={dictionary.app.settingsSavedLanguageLabel}
+                    value={pendingLocaleName}
+                  />
                 </div>
 
                 <div className="settings-block">
+                  <SettingsBlockHeader title={dictionary.app.settingsLanguageTitle} />
                   <label className="field-shell" htmlFor="settings-language-select">
                     <span className="field-label">{dictionary.app.settingsLanguageTitle}</span>
                     <select
@@ -1229,33 +1330,62 @@ function SettingsPage({
                     </select>
                   </label>
                 </div>
-
-                <div className="settings-block settings-block-quiet">
-                  <div className="settings-summary">
-                    <div className="summary-card">
-                      <p className="summary-label">{dictionary.app.settingsLoadedLanguageLabel}</p>
-                      <strong className="summary-value">{activeLocaleName}</strong>
-                    </div>
-                    <div className="summary-card">
-                      <p className="summary-label">{dictionary.app.settingsSavedLanguageLabel}</p>
-                      <strong className="summary-value">{pendingLocaleName}</strong>
-                    </div>
-                  </div>
-                </div>
               </>
             ) : activeModule ? (
               <>
-                <div className="settings-detail-header">
-                  <span className="settings-section-icon">
-                    <MaterialIcon className="glyph" filled name={getIconName(activeModule.id)} />
-                  </span>
-                  <div className="settings-section-copy">
-                    <h3 className="settings-section-title">{activeModule.title}</h3>
-                    <p className="settings-section-text">{activeModule.intro}</p>
-                  </div>
+                <div className="settings-overview-grid">
+                  <SettingsMetricCard
+                    label={dictionary.app.selectedRootLabel}
+                    note={
+                      activeModule.id === "organizer"
+                        ? organizerRootName
+                          ? organizerRootPath
+                          : undefined
+                        : cleanupRootName
+                          ? cleanupRootPath
+                          : undefined
+                    }
+                    value={
+                      activeModule.id === "organizer"
+                        ? organizerRootName ?? dictionary.app.noDirectorySelected
+                        : cleanupRootName ?? dictionary.app.noDirectorySelected
+                    }
+                  />
+
+                  {isOrganizerTab ? (
+                    <>
+                      <SettingsMetricCard
+                        label={dictionary.app.settingsOrganizerStructureLabel}
+                        value={getOrganizerStructureLabel(dictionary, organizerStructure)}
+                      />
+                      <SettingsMetricCard
+                        label={dictionary.app.settingsOrganizerDateSourceLabel}
+                        value={getOrganizerDateSourceLabel(dictionary, organizerDateSource)}
+                      />
+                      <SettingsMetricCard
+                        label={dictionary.app.settingsOrganizerRenameLabel}
+                        value={getOrganizerRenameModeLabel(dictionary, organizerRenameMode)}
+                      />
+                      <SettingsMetricCard
+                        label={dictionary.app.settingsOrganizerUnknownFolderLabel}
+                        value={organizerUnknownFolderName}
+                      />
+                    </>
+                  ) : null}
+
+                  {isCleanupTab ? (
+                    <SettingsMetricCard
+                      label={dictionary.app.settingsCleanupIgnoreTitle}
+                      value={cleanupIgnoredFileNames.length}
+                    />
+                  ) : null}
                 </div>
 
                 <div className="settings-block">
+                  <SettingsBlockHeader
+                    text={activeModule.nextActionLabel}
+                    title={dictionary.app.selectedRootLabel}
+                  />
                   <button
                     className="accent-button settings-action-button"
                     type="button"
@@ -1278,10 +1408,10 @@ function SettingsPage({
                 {isOrganizerTab ? (
                   <>
                     <section className="settings-block settings-subsection">
-                      <div className="settings-section-copy">
-                        <h4 className="settings-section-title">{dictionary.app.settingsOrganizerTitle}</h4>
-                        <p className="settings-section-text">{dictionary.app.settingsOrganizerDescription}</p>
-                      </div>
+                      <SettingsBlockHeader
+                        text={dictionary.app.settingsOrganizerDescription}
+                        title={dictionary.app.settingsOrganizerTitle}
+                      />
 
                       <div className="settings-form-grid">
                         <label className="field-shell" htmlFor="organizer-structure-select">
@@ -1371,30 +1501,15 @@ function SettingsPage({
                       <p className="settings-inline-note">{dictionary.app.settingsOrganizerRenameHint}</p>
                       <p className="settings-inline-note">{dictionary.app.settingsOrganizerUnknownFolderHint}</p>
                     </section>
-
-                    <div className="settings-block settings-block-quiet">
-                      <div className="rule-strip">
-                        <span className="rule-pill">
-                          {getOrganizerStructureLabel(dictionary, organizerStructure)}
-                        </span>
-                        <span className="rule-pill">
-                          {getOrganizerDateSourceLabel(dictionary, organizerDateSource)}
-                        </span>
-                        <span className="rule-pill">
-                          {getOrganizerRenameModeLabel(dictionary, organizerRenameMode)}
-                        </span>
-                        <span className="rule-pill">{organizerUnknownFolderName}</span>
-                      </div>
-                    </div>
                   </>
                 ) : null}
 
                 {isCleanupTab ? (
                   <section className="settings-block settings-subsection">
-                    <div className="settings-section-copy">
-                      <h4 className="settings-section-title">{dictionary.app.settingsCleanupIgnoreTitle}</h4>
-                      <p className="settings-section-text">{dictionary.app.settingsCleanupIgnoreDescription}</p>
-                    </div>
+                    <SettingsBlockHeader
+                      text={dictionary.app.settingsCleanupIgnoreDescription}
+                      title={dictionary.app.settingsCleanupIgnoreTitle}
+                    />
 
                     <label className="field-shell" htmlFor="cleanup-ignore-input">
                       <span className="field-label">{dictionary.app.settingsCleanupIgnoreInputLabel}</span>
